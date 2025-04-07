@@ -35,6 +35,7 @@ class PriorityManager:
         """
         Determine which stream should send next using Weighted Fair Queueing (WFQ)
         """
+        t = time.time()
         if not ready_streams:
             return None
             
@@ -55,5 +56,5 @@ class PriorityManager:
             if score < min_score:
                 min_score = score
                 selected_stream = stream_id
-                
+        print('time taken for picking'  , time.time() - t)
         return selected_stream

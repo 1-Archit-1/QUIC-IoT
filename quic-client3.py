@@ -7,15 +7,14 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
 from quic_priority import PriorityManager
 import traceback
+import time
 class IMUClient:
     def __init__(self):
-        self.queues = {}
         self.serial_port = '/dev/ttyACM0'
         self.baudrate = 921600
         self.running = False
         self.parser = re.compile(r'^(-?\d+\.\d+,){5}-?\d+\.\d+$')
         self.priority_mgr = PriorityManager()
-        self.queues = {}
         self.stream_ids = {}
         self.stream_details = {}
         self.connection = None
@@ -25,20 +24,34 @@ class IMUClient:
         stream_id = self.connection._quic.get_next_available_stream_id(is_unidirectional=True)
         reader,writer = self.connection._create_stream(stream_id)
         self.stream_ids[tag] = stream_id
-        self.stream_details[stream_id] = {'weight': weight, 'tag': tag, 'writer': writer}
+        self.stream_details[stream_id] = {'weight': weight, 'tag': tag, 'writer': writer, 'queue': Queue(maxsize=100)}
         bytes = tag.encode()
         writer.write(bytes)
         await writer.drain()
-        self.priority_mgr.add_stream(stream_id=stream_id, weight=weight) 
-        self.queues[stream_id] = asyncio.Queue(maxsize=100)
-
+        self.priority_mgr.add_stream(stream_id=stream_id, weight=weight)
+        return stream_id
 
     async def process_data(self):
+        """Process data from the queues"""
+        while self.running:
+            for sid,details in self.stream_details.items():
+                queue = details['queue']
+                if not queue.empty():
+                    data = queue.get()
+                    writer = details['writer']
+                    tag = details['tag']
+                    msg = f"{tag}:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode()
+                    print(f"Sending data on stream {sid}: {msg}")
+                    writer.write(msg)
+                    await writer.drain()
+
+    async def process_data_prioritized(self):
         """Process data from the queues."""
+        prev_t = None
         while self.running:
             ready_streams = []
-            for sid, queue in self.queues.items():
-                if not queue.empty():
+            for sid, details in self.stream_details.items():
+                if not details['queue'].empty():
                     ready_streams.append(sid)
             if ready_streams:
                 if len(ready_streams) == 1:
@@ -48,10 +61,11 @@ class IMUClient:
                 stream_details = self.stream_details[selected_stream]
                 writer = stream_details['writer']
                 tag = stream_details['tag']
-                queue = self.queues[selected_stream]
+                queue = stream_details['queue']
                 data = await queue.get()
                 msg = f"{tag}:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode()
                 print(f"Sending data on stream {selected_stream}: {msg}")
+                prev_t = time.time()
                 writer.write(msg)
                 await writer.drain()
                 self.priority_mgr.update_after_send(selected_stream)
@@ -66,6 +80,7 @@ class IMUClient:
         #             del self.writers[stream_id]
         #     print("All streams closed and cleaned up.")
         #     self.running = False
+    
     async def start(self):
         configuration = QuicConfiguration(
             is_client=True,
@@ -79,8 +94,9 @@ class IMUClient:
             self.connection = connection
             
             """Create Streams"""
-            await self.create_tagged_stream(tag = 'accel',weight=256) 
-            await self.create_tagged_stream(tag = 'gyro',weight=30)
+            self.acc_sid = await self.create_tagged_stream(tag = 'accel',weight=256) 
+            
+            self.gyro_sid = await self.create_tagged_stream(tag = 'gyro',weight=30)
 
             # Start serial reader thread
             self.running = True
@@ -88,28 +104,8 @@ class IMUClient:
             serial_thread.start()
             self.acc = 0
             self.gy = 0
-
-            while self.running:
-                ready_streams = []
-                for sid, queue in self.queues.items():
-                    if not queue.empty():
-                        ready_streams.append(sid)
-                if ready_streams:
-                    if len(ready_streams) == 1:
-                        selected_stream = ready_streams[0]
-                    else:
-                        selected_stream = self.priority_mgr.get_next_stream(ready_streams)
-                    stream_details = self.stream_details[selected_stream]
-                    writer = stream_details['writer']
-                    tag = stream_details['tag']
-                    queue = self.queues[selected_stream]
-                    data = await queue.get()
-                    msg = f"{tag}:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode()
-                    print(f"Sending data on stream {selected_stream}: {msg}")
-                    writer.write(msg)
-                    await writer.drain()
-                    self.priority_mgr.update_after_send(selected_stream)
-                    await asyncio.sleep(0)
+            prev_t = time.time()
+            asyncio.ensure_future(self.process_data())
 
 
     def read_serial(self):
@@ -121,10 +117,10 @@ class IMUClient:
                     try:
                         print(line)
                         ax, ay, az, gx, gy, gz = map(float, line.split(','))
-                        acc_sid = self.stream_ids['accel']
-                        gyro_sid = self.stream_ids['gyro']
-                        self.queues[acc_sid].put_nowait((ax, ay, az))
-                        self.queues[gyro_sid].put_nowait((gx, gy, gz))
+                        t = time.time()
+                        self.stream_details[self.acc_sid]['queue'].put((ax, ay, az))
+                        self.stream_details[self.gyro_sid]['queue'].put((gx, gy, gz))
+                        print('time to load:', time.time() - t)
                     except ValueError:
                         continue
         finally:
