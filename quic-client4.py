@@ -1,22 +1,18 @@
-import serial
-import re
 import asyncio
 from queue import Queue
 from threading import Thread
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
 from quic_priority import PriorityManager
-
+from imu import IMUParser
 class IMUClient:
     def __init__(self):
         self.accel_queue = Queue(maxsize=100)
         self.gyro_queue = Queue(maxsize=100)
-        self.serial_port = '/dev/ttyACM0'
-        self.baudrate = 921600
         self.running = False
-        self.parser = re.compile(r'^(-?\d+\.\d+,){5}-?\d+\.\d+$')
+        self.imu_parser = IMUParser()
         self.priority_mgr = PriorityManager()
-        self.stream_ids = {}  # Track our streams
+        self.stream_ids = {}
 
     async def create_tagged_stream(self, tag, weight):
         """Create a new stream and return its ID."""
@@ -44,7 +40,7 @@ class IMUClient:
             gyro_writer = await self.create_tagged_stream("gyro", weight=128)  # Lower priority
             # Start serial reader thread
             self.running = True
-            serial_thread = Thread(target=self.read_serial)
+            serial_thread = Thread(target=self.imu_parser.read_serial, args=(self.accel_queue, self.gyro_queue))
             serial_thread.start()
 
             try:
@@ -77,26 +73,11 @@ class IMUClient:
                             await writer.drain()
                             self.priority_mgr.update_after_send(selected_stream)
 
-                    await asyncio.sleep(0.001)  # Prevent busy waiting
+                    await asyncio.sleep(0)  # Prevent busy waiting
 
             finally:
                 self.running = False
                 serial_thread.join()
-
-    def read_serial(self):
-        ser = serial.Serial(self.serial_port, self.baudrate, timeout=0.1)
-        try:
-            while self.running:
-                line = ser.readline().decode().strip()
-                if line and self.parser.match(line):
-                    try:
-                        ax, ay, az, gx, gy, gz = map(float, line.split(','))
-                        self.accel_queue.put((ax, ay, az))
-                        self.gyro_queue.put((gx, gy, gz))
-                    except ValueError:
-                        continue
-        finally:
-            ser.close()
 
 if __name__ == "__main__":
     client = IMUClient()
