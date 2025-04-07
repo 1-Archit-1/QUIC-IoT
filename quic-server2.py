@@ -35,7 +35,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 if not data:
                     asyncio.sleep(0)
                     continue
-                if sensor_type == 'acce':
+                if sensor_type == 'accel':
                     await self.process_accel_data(data)
                 elif sensor_type == 'gyro':
                     await self.process_gyro_data(data)
@@ -46,6 +46,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
     def quic_event_received(self, event) -> None:
         if isinstance(event, StreamDataReceived):
             # Handle data received on the stream
+            print(f"Received data on stream {event.stream_id}: {event.data.decode()}")
             stream_id = event.stream_id
             queue = self.data_queues.get(stream_id)
             if queue is None:
@@ -57,7 +58,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 if data.startswith("accel"):
                     self.data_queues[stream_id] = self.accel_queue
                     print(f"Accel stream connected: {stream_id}")
-                    asyncio.ensure_future(self.handle_stream(event.stream_id, 'acce'))
+                    asyncio.ensure_future(self.handle_stream(event.stream_id, 'accel'))
                 elif data.startswith("gyro"):
                     self.data_queues[stream_id] = self.gyro_queue
                     print(f"Gyro stream connected: {stream_id}")
