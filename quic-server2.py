@@ -54,11 +54,11 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 except UnicodeDecodeError:
                     print(f"Received non-decodable data on stream {stream_id}")
                     return
-                if data.startswith("ACCE"):
+                if data.startswith("accel"):
                     self.data_queues[stream_id] = self.accel_queue
                     print(f"Accel stream connected: {stream_id}")
                     asyncio.ensure_future(self.handle_stream(event.stream_id, 'acce'))
-                elif data.startswith("GYRO"):
+                elif data.startswith("gyro"):
                     self.data_queues[stream_id] = self.gyro_queue
                     print(f"Gyro stream connected: {stream_id}")
                     asyncio.ensure_future(self.handle_stream(event.stream_id,'gyro'))
