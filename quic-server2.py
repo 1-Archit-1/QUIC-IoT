@@ -6,7 +6,12 @@ from typing import Optional
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.quic.events import StreamDataReceived
 from imu import IMUParser
+import time
+import logging
 
+# Set up logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s', filename='quic_server.log')
 class HttpServerProtocol(QuicConnectionProtocol):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -16,15 +21,36 @@ class HttpServerProtocol(QuicConnectionProtocol):
         self.imu_parser = IMUParser()
         self.accel_queue = asyncio.Queue(maxsize=100)
         self.gyro_queue = asyncio.Queue(maxsize=100)
-    
+        self.total_messages = 0
+        self.accel_count = 0
+        self.gyro_count = 0
+        self.accel_last_log = time.time()
+        self.gyro_last_log = time.time()
+        self.accel_start = time.time()
+        self.gyro_start = time.time()
+        
     async def process_accel_data(self,data):
         """Process accelerometer data, just print it for now"""
         accel = list(map(float, data.split(":")[1].split(",")))
+        self.accel_count += 1
+        now = time.time()
+        if now - self.accel_last_log >= 5:
+            self.accel_last_log = now
+            rate = self.accel_count / (now - self.accel_start)
+            print(f"Accel rate: {rate:.2f} Hz")
+            logging.info(f"Accel rate: {rate:.2f} Hz")
         print(f"Accel: X={accel[0]:.2f} Y={accel[1]:.2f} Z={accel[2]:.2f} ")
     
     async def process_gyro_data(self,data):
         """Process gyroscope data, just print it for now"""
         gyro = list(map(float, data.split(":")[1].split(",")))
+        self.gyro_count += 1
+        now = time.time()
+        if now - self.gyro_last_log >= 5:
+            self.gyro_last_log = now
+            rate = self.gyro_count / (now - self.gyro_start)
+            print(f"Gyro rate: {rate:.2f} Hz")
+            logging.info(f"Gyro rate: {rate:.2f} Hz")
         print(f"Gyro: X={gyro[0]:.2f} Y={gyro[1]:.2f} Z={gyro[2]:.2f}")
     
     async def handle_stream(self,stream_id, sensor_type):
@@ -57,10 +83,12 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 if data.startswith("accel"):
                     self.data_queues[stream_id] = self.accel_queue
                     print(f"Accel stream connected: {stream_id}")
+                    self.accel_start = time.time()
                     asyncio.ensure_future(self.handle_stream(event.stream_id, 'accel'))
                 elif data.startswith("gyro"):
                     self.data_queues[stream_id] = self.gyro_queue
                     print(f"Gyro stream connected: {stream_id}")
+                    self.gyro_start = time.time()
                     asyncio.ensure_future(self.handle_stream(event.stream_id,'gyro'))
             else:
                 # Process incoming data

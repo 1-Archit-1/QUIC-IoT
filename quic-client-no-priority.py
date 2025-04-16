@@ -6,7 +6,6 @@ from threading import Thread
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
 from imu import IMUParser
-
 class IMUClient:
     def __init__(self):
         self.accel_queue = Queue(maxsize=100)
@@ -27,9 +26,11 @@ class IMUClient:
             a_sid = connection._quic.get_next_available_stream_id(is_unidirectional=True)
             accel_reader, accel_writer = connection._create_stream(a_sid)
             accel_writer.write(b"accel")
+            await accel_writer.drain()
             g_sid = connection._quic.get_next_available_stream_id(is_unidirectional=True)
             gyro_reader, gyro_writer = connection._create_stream(g_sid)
             gyro_writer.write(b"gyro")
+            await gyro_writer.drain()
             self.running = True
             serial_thread = Thread(target=self.imu_parser.read_serial, args=(self.accel_queue, self.gyro_queue))
             serial_thread.start()
@@ -48,7 +49,7 @@ class IMUClient:
                         gyro_writer.write(f"GYRO:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}".encode())
                         await gyro_writer.drain()
 
-                    await asyncio.sleep(0)  # 1ms delay
+                    await asyncio.sleep(0)
 
             finally:
                 self.running = False
