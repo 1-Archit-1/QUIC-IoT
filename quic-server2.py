@@ -57,10 +57,10 @@ class HttpServerProtocol(QuicConnectionProtocol):
         try:
             queue = self.data_queues.get(stream_id)
             while True:
-                data = await queue.get()
-                if not data:
-                    asyncio.sleep(0)
+                if queue.empty():
+                    await asyncio.sleep(0)
                     continue
+                data = queue.get_nowait()
                 if sensor_type == 'accel':
                     await self.process_accel_data(data)
                 elif sensor_type == 'gyro':
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(
                 run_server(
-                    host='localhost',
+                    host='0.0.0.0',
                     port=4433,
                     configuration=configuration,
                 )
