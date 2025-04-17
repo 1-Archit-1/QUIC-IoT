@@ -5,6 +5,9 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
 from quic_priority import PriorityManager
 from imu import IMUParser
+import argparse
+SERVER_URL = '172.190.228.31'
+
 class IMUClient:
     def __init__(self):
         self.accel_queue = Queue(maxsize=100)
@@ -25,7 +28,7 @@ class IMUClient:
         self.priority_mgr.add_stream(stream_id=stream_id, weight=weight)
         return writer
     
-    async def start(self):
+    async def start(self, host):
         configuration = QuicConfiguration(
             is_client=True,
             alpn_protocols=["h3"],
@@ -33,7 +36,7 @@ class IMUClient:
             verify_mode=False
         )
 
-        async with connect("localhost", 4433, configuration=configuration) as connection:
+        async with connect(host, 4433, configuration=configuration) as connection:
             # Create and register streams
             self.connection = connection
             accel_writer = await self.create_tagged_stream("accel", weight=256)  # Higher priority
@@ -51,14 +54,14 @@ class IMUClient:
                     
                     if not self.accel_queue.empty():
                         data = self.accel_queue.get()
-                        accel_writer.write(f"ACCEL:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}".encode())
+                        accel_writer.write(f"ACCEL:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode())
                         await accel_writer.drain()
                         ready_streams.append(self.stream_ids['accel'])
                         streams_writers[self.stream_ids['accel']] = (accel_writer, self.accel_queue)
                         
                     if not self.gyro_queue.empty():
                         data = self.gyro_queue.get()
-                        gyro_writer.write(f"GYRO:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}".encode())
+                        gyro_writer.write(f"GYRO:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode())
                         await gyro_writer.drain()
                         ready_streams.append(self.stream_ids['gyro'])
                         streams_writers[self.stream_ids['gyro']] = (gyro_writer, self.gyro_queue)
@@ -87,4 +90,12 @@ class IMUClient:
 
 if __name__ == "__main__":
     client = IMUClient()
-    asyncio.run(client.start())
+    argparse = argparse.ArgumentParser(description="QUIC Client for IMU Data")
+    argparse.add_argument('--host', type=str, default='local', help='Host to connect to')
+    #get args
+    args = argparse.parse_args()
+    if args.host == 'local':
+        host= 'localhost'
+    else:
+        host = SERVER_URL
+    asyncio.run(client.start(host))

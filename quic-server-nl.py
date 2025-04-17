@@ -7,6 +7,7 @@ from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.quic.events import StreamDataReceived
 from imu import IMUParser
 import time
+import argparse
 import logging
 
 # Set up logging
@@ -19,8 +20,9 @@ class HttpServerProtocol(QuicConnectionProtocol):
         self.c=0
         self.data_queues = {}
         self.imu_parser = IMUParser()
-        self.accel_queue = asyncio.Queue(maxsize=100)
-        self.gyro_queue = asyncio.Queue(maxsize=100)
+        self.accel_queue = None
+        self.gyro_queue = None
+        self.dual_queue = None
         self.total_messages = 0
         self.accel_count = 0
         self.gyro_count = 0
@@ -61,11 +63,18 @@ class HttpServerProtocol(QuicConnectionProtocol):
                     await asyncio.sleep(0)
                     continue
                 data = queue.get_nowait()
+                
                 if sensor_type == 'accel':
                     await self.process_accel_data(data)
+                
                 elif sensor_type == 'gyro':
                     await self.process_gyro_data(data)
                 
+                elif sensor_type == 'both':
+                    if data.startswith("ACCEL:"):
+                        await self.process_accel_data(data)
+                    elif data.startswith("GYRO:"):
+                        await self.process_gyro_data(data)
         except ConnectionResetError:
             print("Client disconnected")
     
@@ -82,15 +91,26 @@ class HttpServerProtocol(QuicConnectionProtocol):
                     print(f"Received non-decodable data on stream {stream_id}")
                     return
                 if data.startswith("accel"):
+                    self.accel_queue = asyncio.Queue(maxsize=1000)
                     self.data_queues[stream_id] = self.accel_queue
                     print(f"Accel stream connected: {stream_id}")
                     self.accel_start = time.time()
                     asyncio.ensure_future(self.handle_stream(event.stream_id, 'accel'))
+                    
                 elif data.startswith("gyro"):
+                    self.gyro_queue = asyncio.Queue(maxsize=1000)
                     self.data_queues[stream_id] = self.gyro_queue
                     print(f"Gyro stream connected: {stream_id}")
                     self.gyro_start = time.time()
                     asyncio.ensure_future(self.handle_stream(event.stream_id,'gyro'))
+
+                elif data.startswith("both"):
+                    self.dual_queue = asyncio.Queue(maxsize=1000)
+                    self.data_queues[stream_id] = self.dual_queue
+                    print(f"Both stream connected: {stream_id}")
+                    self.accel_start = time.time()
+                    self.gyro_start = time.time()
+                    asyncio.ensure_future(self.handle_stream(event.stream_id, 'both'))
             else:
                 # Process incoming data
                 data = event.data.decode()
@@ -118,11 +138,18 @@ if __name__ == "__main__":
         max_datagram_frame_size=65536
     )
     configuration.load_cert_chain("ssl_cert.pem", "ssl_key.pem")
-    
+    argparse = argparse.ArgumentParser(description="QUIC Server for IMU Data")
+    argparse.add_argument('--host', type=str, default='local', help='Host to connect to')
+    #get args
+    args = argparse.parse_args()
+    if args.host == 'local':
+        host= 'localhost'
+    else:
+        host = "0.0.0.0"
     try:
         asyncio.run(
                 run_server(
-                    host='0.0.0.0',
+                    host=host,
                     port=4433,
                     configuration=configuration,
                 )
