@@ -66,11 +66,9 @@ class HttpServerProtocol(QuicConnectionProtocol):
             queue = self.data_queues.get(stream_id)
             while True:
                 data = await queue.get()
-                print(data)
                 self.stream_buffers[stream_id] += data
-                while "\n" in self.stream_buffers[stream_id]:
+                while b'\n' in self.stream_buffers[stream_id]:
                     line, self.stream_buffers[stream_id] = self.stream_buffers[stream_id].split("\n", 1)
-                    line = line.strip()
                     if not line:
                         continue
                     if sensor_type == 'accel' and line.startswith("ACCEL:"):
