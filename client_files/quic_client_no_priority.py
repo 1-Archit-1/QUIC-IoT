@@ -1,19 +1,22 @@
-import serial
-import re
 import asyncio
 from queue import Queue
 from threading import Thread
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
-from imu import IMUParser
-class IMUClient:
+from helpers import IMUParser
+import argparse
+
+SERVER_URL = '172.190.228.31'
+
+class IMUClientNoPriority:
+    """QUIC client for sending IMU data to a server with no priority management."""
     def __init__(self):
-        self.accel_queue = Queue(maxsize=100)
-        self.gyro_queue = Queue(maxsize=100)
+        self.accel_queue = Queue(maxsize=1000)
+        self.gyro_queue = Queue(maxsize=1000)
         self.imu_parser = IMUParser()
         self.running = False
         
-    async def start(self):
+    async def start(self, host):
         configuration = QuicConfiguration(
             is_client=True,
             alpn_protocols=["h3"],
@@ -21,7 +24,7 @@ class IMUClient:
             verify_mode=False
         )
 
-        async with connect("localhost", 4433, configuration=configuration) as connection:
+        async with connect(host, 4433, configuration=configuration) as connection:
             # Create separate streams
             a_sid = connection._quic.get_next_available_stream_id(is_unidirectional=True)
             accel_reader, accel_writer = connection._create_stream(a_sid)
@@ -40,13 +43,13 @@ class IMUClient:
                     # Send accelerometer data
                     if not self.accel_queue.empty():
                         data = self.accel_queue.get()
-                        accel_writer.write(f"ACCEL:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}".encode())
+                        accel_writer.write(f"ACCEL:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode())
                         await accel_writer.drain()
 
                     # Send gyroscope data
                     if not self.gyro_queue.empty():
                         data = self.gyro_queue.get()
-                        gyro_writer.write(f"GYRO:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}".encode())
+                        gyro_writer.write(f"GYRO:{data[0]:.3f},{data[1]:.3f},{data[2]:.3f}\n".encode())
                         await gyro_writer.drain()
 
                     await asyncio.sleep(0)
@@ -56,5 +59,12 @@ class IMUClient:
                 serial_thread.join()
 
 if __name__ == "__main__":
-    client = IMUClient()
+    parser = argparse.ArgumentParser(description="QUIC IMU Client")
+    parser.add_argument("--host", type=str, default="localhost", help="Server host")
+    args = parser.parse_args()
+    if args.host == "local":
+        host = "localhost"
+    else:
+        host = SERVER_URL 
+    client = IMUClientNoPriority()
     asyncio.run(client.start())

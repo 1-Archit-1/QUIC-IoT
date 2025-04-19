@@ -7,10 +7,12 @@ import asyncio
 import traceback
 import time
 import logging
-
+import os
+if not os.path.exists('logs'):
+    os.makedirs('logs')
 # Set up logging
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s', filename='tcp_server.log')
+                    format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/tcp_server.log')
 class TCPIMUServer:
     def __init__(self, host='0.0.0.0', port=5555):
         self.host = host
