@@ -3,10 +3,10 @@ from queue import Queue
 from threading import Thread
 import time
 import traceback
-from imu import IMUParser
+from helpers import IMUParser
 
 class TCPIMUClient:
-    def __init__(self, host='localhost', port=5555):
+    def __init__(self, host='172.190.228.31', port=5555):
         self.accel_queue = Queue(maxsize=100)
         self.gyro_queue = Queue(maxsize=100)
         self.imu_parser = IMUParser()
