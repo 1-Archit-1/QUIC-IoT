@@ -1,16 +1,14 @@
-import serial
-import re
 import asyncio
 from queue import Queue
 from threading import Thread
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
-from imu import IMUParser
+from helpers import IMUParser
 import argparse
 
 SERVER = "172.190.228.31"
 
-class IMUClient:
+class IMUClientSingleStream:
     def __init__(self):
         self.gyro_queue = Queue(maxsize=1000)
         self.accel_queue = Queue(maxsize=1000)
@@ -52,7 +50,7 @@ class IMUClient:
                 serial_thread.join()
 
 if __name__ == "__main__":
-    client = IMUClient()
+    client = IMUClientSingleStream()
     #add cli args
     argparse = argparse.ArgumentParser(description="QUIC Client for IMU Data")
     argparse.add_argument('--host', type=str, default='local', help='Host to connect to')

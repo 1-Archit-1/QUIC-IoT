@@ -5,21 +5,23 @@ import asyncio
 from typing import Optional
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.quic.events import StreamDataReceived
-from imu import IMUParser
 import time
 import argparse
 import logging
 
 # Set up logging
+#create logs folder if it doesnt exist
+import os
+if not os.path.exists('logs'):
+    os.makedirs('logs')
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s', filename='quic_server.log')
+                    format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/quic_server.log')
 class HttpServerProtocol(QuicConnectionProtocol):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._http: Optional[H3Connection] = None
         self.c=0
         self.data_queues = {}
-        self.imu_parser = IMUParser()
         self.accel_queue = None
         self.gyro_queue = None
         self.dual_queue = None

@@ -3,12 +3,12 @@ from queue import Queue
 from threading import Thread
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.client import connect
-from quic_priority import PriorityManager
-from imu import IMUParser
+from helpers import PriorityManager, IMUParser
 import argparse
 SERVER_URL = '172.190.228.31'
 
 class IMUClient:
+    """QUIC client for sending IMU data to a server with priority management."""
     def __init__(self):
         self.accel_queue = Queue(maxsize=100)
         self.gyro_queue = Queue(maxsize=100)
@@ -29,6 +29,7 @@ class IMUClient:
         return writer
     
     async def start(self, host):
+        
         configuration = QuicConfiguration(
             is_client=True,
             alpn_protocols=["h3"],
