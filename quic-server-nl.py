@@ -40,9 +40,10 @@ class HttpServerProtocol(QuicConnectionProtocol):
         now = time.time()
         if now - self.accel_last_log >= 5:
             self.accel_last_log = now
-            rate = self.accel_count / (now - self.accel_start)
+            total_time = now - self.accel_start
+            rate = self.accel_count / total_time
             print(f"Accel rate: {rate:.2f} Hz")
-            logging.info(f"Accel rate: {rate:.2f} Hz")
+            logging.info(f"[QUIC] Accel rate: {rate:.2f} msgs/sec over {total_time:.2f} seconds")
         print(f"Accel: X={accel[0]:.2f} Y={accel[1]:.2f} Z={accel[2]:.2f} ")
     
     async def process_gyro_data(self,data):
@@ -53,8 +54,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
         if now - self.gyro_last_log >= 5:
             self.gyro_last_log = now
             rate = self.gyro_count / (now - self.gyro_start)
-            print(f"Gyro rate: {rate:.2f} Hz")
-            logging.info(f"Gyro rate: {rate:.2f} Hz")
+            logging.info(f"[QUIC] Gyro rate: {rate:.2f} msgs/sec over {now - self.gyro_start:.2f} seconds")
         print(f"Gyro: X={gyro[0]:.2f} Y={gyro[1]:.2f} Z={gyro[2]:.2f}")
     
     async def handle_stream(self,stream_id, sensor_type):
