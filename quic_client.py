@@ -1,4 +1,4 @@
-from client_files import IMUClient, IMUClientSingleStream, IMUClientNoPriority
+from client_files import IMUClient, IMUClientSingleStream, IMUClientNoPriority,IMUClientNoPriorityV2
 import argparse
 import asyncio
 SERVER = "172.190.228.31"

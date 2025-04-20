@@ -7,7 +7,7 @@ from helpers import PriorityManager, IMUParser
 import argparse
 SERVER_URL = '172.190.228.31'
 
-class IMUClient:
+class IMUClientNoPriority:
     """QUIC client for sending IMU data to a server with priority management."""
     def __init__(self):
         self.accel_queue = Queue(maxsize=100)
@@ -40,6 +40,7 @@ class IMUClient:
         async with connect(host, 4433, configuration=configuration) as connection:
             # Create and register streams
             self.connection = connection
+            print("Connected to server")
             accel_writer = await self.create_tagged_stream("accel", weight=256)  # Higher priority
             gyro_writer = await self.create_tagged_stream("gyro", weight=128)  # Lower priority
             # Start serial reader thread
@@ -90,7 +91,7 @@ class IMUClient:
                 serial_thread.join()
 
 if __name__ == "__main__":
-    client = IMUClient()
+    client = IMUClientNoPriority()
     argparse = argparse.ArgumentParser(description="QUIC Client for IMU Data")
     argparse.add_argument('--host', type=str, default='local', help='Host to connect to')
     #get args
