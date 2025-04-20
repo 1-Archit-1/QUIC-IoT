@@ -35,10 +35,10 @@ class HttpServerProtocol(QuicConnectionProtocol):
     def process_rate_logging(self, sensor_type):
         """Log the rate of incoming data"""
         now = time.time()
-        if sensor_type == 'accel' or 'both':
+        if sensor_type == 'accel' or sensor_type == 'both':
             rate = self.accel_count / (now - self._start_time)
             logging.info(f"Accel rate: {rate:.2f} msgs/sec over {now - self._start_time:.2f} seconds")
-        elif sensor_type == 'gyro' or 'both':
+        elif sensor_type == 'gyro' or sensor_type == 'both':
             rate = self.gyro_count / (now - self._start_time)
             logging.info(f"Gyro rate: {rate:.2f} msgs/sec over {now - self._start_time:.2f} seconds")
     async def process_accel_data(self, data):
