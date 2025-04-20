@@ -1,0 +1,6 @@
+#gitignore file
+# This file is used to ignore files and directories in a Git repository.
+*.pyc
+__pycache__/
+log/
+*.log
