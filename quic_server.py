@@ -52,7 +52,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 self.process_rate_logging('accel')
             print(f"Accel: X={accel[0]:.2f} Y={accel[1]:.2f} Z={accel[2]:.2f}")
         except Exception as e:
-            logging.error(f"Error processing accel data: {e}")
+            logging.error(f"Error processing accel data:{data} {e}")
 
     async def process_gyro_data(self, data):
         """Process gyroscope data"""
@@ -65,7 +65,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 self.process_rate_logging('gyro')
             print(f"Gyro: X={gyro[0]:.2f} Y={gyro[1]:.2f} Z={gyro[2]:.2f}")
         except Exception as e:
-            logging.error(f"Error processing gyro data: {e}")
+            logging.error(f"Error processing gyro data:{data} {e}")
 
     async def handle_stream(self, stream_id, sensor_type):
         """Handle data stream processing"""
