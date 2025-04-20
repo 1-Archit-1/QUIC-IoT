@@ -79,7 +79,6 @@ class HttpServerProtocol(QuicConnectionProtocol):
                 try:
                     data = await queue.get()
                     if data == '0':  # Sentinel value for shutdown
-                        print('rate logging ?')
                         self.process_rate_logging(sensor_type)
                         break
 
@@ -215,7 +214,6 @@ async def run_server(
                 await protocol.shutdown()
             server.close()
             await asyncio.sleep(0.1)
-            logging.info("Server closed")
 
 def handle_sigint(shutdown_event: asyncio.Event):
     """Signal handler for SIGINT"""
@@ -257,8 +255,6 @@ async def main():
         )
     except Exception as e:
         logging.error(f"Server error: {e}")
-    finally:
-        logging.info("Application shutdown complete")
 
 if __name__ == "__main__":
     try:
@@ -267,5 +263,3 @@ if __name__ == "__main__":
         logging.info("KeyboardInterrupt received")
     except Exception as e:
         logging.error(f"Fatal error: {e}")
-    finally:
-        logging.info("Application terminated")
