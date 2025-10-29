@@ -2,6 +2,8 @@
 
 This repository provides implementations of both QUIC and TCP-based streaming servers and clients for Inertial Measurement Unit (IMU) data, including accelerometer and gyroscope streams.
 
+Check https://github.com/1-Archit-1/QUIC-Streaming for Media implementaion
+
 ## 📦 Features
 
 - **QUIC and TCP support** for low-latency data streaming
