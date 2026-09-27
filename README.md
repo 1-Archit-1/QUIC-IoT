@@ -37,12 +37,15 @@ python quic_server.py --host [local|server]
 
 ### 🔐 SSL Certificates
 
-Sample self-signed certificates are provided (`cert.pem` and `key.pem`) **for development only**.
-
-To generate your own for production:
+To generate a self-signed certificate and private key for local development, run the included script:
 
 ```bash
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+./generate_certs.sh
+```
+
+Or manually:
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout ssl_key.pem -out ssl_cert.pem -sha256 -days 365 -nodes
 ```
 
 You’ll be prompted for certificate details (country, organization, etc.).
