@@ -1,20 +1,22 @@
-# IMU Streaming Server and Client
+# QUIC IoT Telemetry Streamer
 
-This repository provides implementations of both QUIC and TCP-based streaming servers and clients for Inertial Measurement Unit (IMU) data, including accelerometer and gyroscope streams.
+A Python-based transport layer for streaming real-time IoT sensor data. By leveraging the QUIC protocol (`aioquic`), this project bypasses common TCP bottlenecks (like Head-of-Line blocking) to ensure low-latency, high-frequency data delivery over unstable networks.
 
-Check https://github.com/1-Archit-1/QUIC-Streaming for Media implementaion and https://github.com/1-Archit-1/WebTransport-Client-Server for Basic Client-Server code. 
+## System Architecture
 
-## Features
+The project is split into two main components:
 
-- **QUIC and TCP support** for low-latency data streaming
-- **Multiple streaming modes**: single-stream and multi-stream IMU data handling
-- **Custom prioritization** for QUIC multi-stream modes
-- **SSL certificate support** (sample certs included)
-- **Runtime logs** provide performance and throughput stats
+1. **The Server (Base Station / Cloud)**
+   - Designed to run on a centralized cloud instance or local base station.
+   - Listens for incoming QUIC streams, processes the high-frequency telemetry, and logs real-time throughput and performance metrics.
+2. **The Client (IoT Edge Device)**
+   - Designed to run on an edge device (e.g., Raspberry Pi, Jetson) attached to a moving object.
+   - **Hardware Connection:** The client physically connects to an IMU sensor via USB serial port (`/dev/ttyACM0`). It reads the raw sensor data and multiplexes it over QUIC to the server.
+   - **Demo Mode (No Hardware Required):** If you are just testing the software and do not have a physical IMU plugged in, the client will gracefully fall back to generating high-frequency mock data (~500 Hz). This makes it easy to test the transport layer out-of-the-box!
 
 ---
 
-## Performance Benchmarks & Research Highlights
+## 📊 Performance Benchmarks & Research Highlights
 
 Based on empirical testing (detailed in `Analysis of Transport over QUIC.pdf`), this transport layer was benchmarked for high-frequency IMU telemetry against traditional TCP:
 
@@ -25,31 +27,24 @@ Based on empirical testing (detailed in `Analysis of Transport over QUIC.pdf`), 
 
 ---
 
-## Hardware Fallback & Data Generation
+## Installation & Quickstart (Docker) - Recommended
 
-The IMU client is designed to stream physical telemetry data by searching for a real IMU hardware device connected via serial port at `/dev/ttyACM0`. 
+The easiest way to test the system is via Docker. This allows you to simulate both the Server and the Client on your local machine without needing to install any Python dependencies.
 
-If a physical IMU is not detected on that port, the system automatically falls back to generating high-frequency mock data (~500 Hz). This ensures the repository works instantly out-of-the-box for testing and demonstration purposes without requiring physical hardware.
-
----
-
-## Installation & Running (Docker) - Recommended
-
-The easiest way to run the QUIC server and its dependencies is via Docker. The Dockerfile will automatically install all Python dependencies and generate the required local SSL certificates.
-
-1. **Start the QUIC server:**
+1. **Start the QUIC Server (Base Station):**
+   This spins up the server in the background and automatically generates local SSL certificates.
    ```bash
    docker-compose up -d --build
    ```
 
-2. **Test the streaming client:**
-   Since the server is isolated in the container, you can run the client directly inside the running container to stream data (this avoids needing to install dependencies on your local machine):
+2. **Start the QUIC Client (IoT Device):**
+   Run the client directly inside the isolated container. Because you likely don't have an IMU sensor plugged into your laptop, it will automatically use Demo Mode and generate mock data.
    ```bash
    docker exec -it quic-iot_quic-server_1 python3 quic_client.py --host local --stream single
    ```
 
 3. **View live throughput logs:**
-   Because the logs are volume-mounted, you can watch the streaming metrics in real-time on your host machine:
+   Open a new terminal and watch the server actively ingest the high-frequency stream:
    ```bash
    tail -f logs/quic_server.log
    ```
@@ -74,11 +69,6 @@ To generate a self-signed certificate and private key for local development, run
 
 ```bash
 ./generate_certs.sh
-```
-
-Or manually:
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout ssl_key.pem -out ssl_cert.pem -sha256 -days 365 -nodes
 ```
 
 ### QUIC Server
