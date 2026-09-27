@@ -1,5 +1,9 @@
 import serial
 import re
+import time
+import random
+import logging
+
 class IMUParser:
     """Parser for IMU data"""
     def __init__(self):
@@ -12,7 +16,8 @@ class IMUParser:
         return bool(self.pattern.match(line))
     
     def read_serial(self, accel_queue, gyro_queue):
-            """Thread function to read from serial port"""
+        """Thread function to read from serial port"""
+        try:
             ser = serial.Serial(self.serial_port, self.baudrate)
             try:
                 while True:
@@ -26,3 +31,11 @@ class IMUParser:
                             continue
             finally:
                 ser.close()
+        except serial.serialutil.SerialException:
+            print("No physical IMU found on /dev/ttyACM0. Generating high-frequency mock data...")
+            while True:
+                ax, ay, az = random.uniform(-2.0, 2.0), random.uniform(-2.0, 2.0), random.uniform(-2.0, 2.0)
+                gx, gy, gz = random.uniform(-100.0, 100.0), random.uniform(-100.0, 100.0), random.uniform(-100.0, 100.0)
+                accel_queue.put((ax, ay, az))
+                gyro_queue.put((gx, gy, gz))
+                time.sleep(0.002)  # Simulate ~500 Hz sensor rate

@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 import asyncio
 from queue import Queue
 from threading import Thread
@@ -6,7 +9,7 @@ from aioquic.asyncio.client import connect
 from helpers import IMUParser
 import argparse
 
-SERVER_URL = '172.190.228.31'
+SERVER_URL = os.getenv('SERVER_HOST', '172.190.228.31')
 
 class IMUClientNoPriority:
     """QUIC client for sending IMU data to a server with no priority management."""

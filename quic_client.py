@@ -1,7 +1,10 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 from client_files import IMUClient, IMUClientSingleStream, IMUClientNoPriority,IMUClientNoPriorityV2
 import argparse
 import asyncio
-SERVER = "172.190.228.31"
+SERVER = os.getenv('SERVER_HOST', os.getenv('SERVER_HOST', '172.190.228.31'))
 
 if __name__ == '__main__':
     argparse = argparse.ArgumentParser(description="QUIC Client for IMU Data")
@@ -10,7 +13,7 @@ if __name__ == '__main__':
     #get args 
     args = argparse.parse_args()
     if args.host == 'local':
-        host= 'localhost'
+        host= '127.0.0.1'
     else:
         host = SERVER
     if args.stream == 'single':

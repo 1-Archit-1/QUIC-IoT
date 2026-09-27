@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 import socket
 from queue import Queue
 from threading import Thread
@@ -6,7 +9,7 @@ import traceback
 from helpers import IMUParser
 
 class TCPIMUClient:
-    def __init__(self, host='172.190.228.31', port=5555):
+    def __init__(self, host=os.getenv('SERVER_HOST', '172.190.228.31'), port=5555):
         self.accel_queue = Queue(maxsize=100)
         self.gyro_queue = Queue(maxsize=100)
         self.imu_parser = IMUParser()
